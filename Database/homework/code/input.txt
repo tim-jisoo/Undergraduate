@@ -1,0 +1,92 @@
+3 1 l001 mapo1 seoul 123123123
+2 1
+1 1 admin heo hongdae 01086674155
+1 1 c001 kim sinchon 01087099990
+1 1 c008 jim tincon 010870977777
+1 2 c009
+1 2 admin
+2 1
+3 1 l001 mapo1 seoul 123123123
+3 3 b001 book1 heo drama1 2016 200 l001
+3 1 l002 mapo2 incheon 321321321
+3 3 b002 book2 kim drama2 2014 300 l001
+3 3 b003 book3 lee drama3 2012 400 l002
+3 5 w001 kim seoul 1111111111111 l002
+3 5 w002 park busan 2222222222 l001
+3 5 w003 lee mapo3 22222223333 l002
+3 7
+3 8 mapo2
+3 9
+3 13
+1 2 c008
+2 1
+2 2 book1
+2 2 kim
+2 2 book3
+2 3
+2 6
+1 2 c001
+2 1
+3 7
+3 1 l009 mapo9 seoul 123123123333
+2 2 book3
+2 2 book8
+2 2 book1
+2 2 book2
+2 3
+1 2 c009
+1 1 c011 hong hongdae 01112323232133
+2 6
+1 2 admin
+1 1
+1 1
+1 1
+1 1
+1 1
+1 1
+1 1
+3 10
+3 12 jim
+3 11 book1
+3 11 book3
+3 11 book2
+3 13
+1 2 c008
+2 5
+1 2 admin
+3 10
+3 12 jim
+3 13
+1 2 c001
+2 3
+2 4 r004
+2 3
+2 4 r005
+2 3
+2 4 r006
+2 3
+2 6
+3 7
+2 3
+1 2 c001
+2 5
+1 2 c001
+1 2 admin
+3 10
+3 9
+3 6 w001
+3 9
+3 6 w002
+3 6 w003
+3 9
+3 4 b003
+3 4 b001
+3 4 b002
+3 7
+3 2 l001
+3 7
+3 2 l003
+3 2 l002
+3 7
+3 13
+1 3

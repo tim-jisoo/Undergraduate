@@ -1,0 +1,3 @@
+#! /bin/sh
+
+gcc -o ./exe/mysfs ./source/sfs_disk.c ./source/hw4_func_hw.c ./source/sfs_main.c ./source/sfs_func_ext.o

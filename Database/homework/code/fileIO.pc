@@ -1,0 +1,919 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sqlca.h>
+
+#define MAX_STRING 32
+
+enum{NONE, ADMIN, USER};
+
+EXEC SQL BEGIN DECLARE SECTION;
+/*Customer*/
+char cid[32];		//고객id	[기본키]
+char cname[32];		//고객 이름
+char cadd[32];		//고객 주소
+char ccall[32];		//고객 번호
+
+/*Book*/
+char bid[32];		//책id	[기본키]
+char bname[32];		//책이름
+char category[32];	//종류
+int pdate;			//발간연도
+int pn;				//페이지수
+//lid[32];			//도서관id (외래키)
+
+/*Reservation*/
+char rid[32];		//예약 id (외래키)
+//cid[32];			//고객 id [기본키]
+//bid[32];			//책 id [기본키]
+
+/*Author*/
+//bid[32];			//책id(외래키) [기본키]
+char aname[32];		//작가이름 [기본키]
+
+/*Library*/
+char lid[32];		//도서관id	[기본키]
+char lname[32];		//도서관 이름
+char ladd[32];		//도서관 주소
+char lcall[32];		//도서관 번호
+
+/*Worker*/
+char wid[32];		//사서id [기본키]
+char wname[32];		//사서 이름
+char wadd[32];		//사서 주소
+char wcall[32];		//사서 번호
+//lid[32];			//도서관id (외래키)
+EXEC SQL END DECLARE SECTION;
+
+
+void connect2DB();
+void createTables();
+void deleteTables();
+void createTable_customer();
+void createTable_book();
+void createTalbe_library();
+void createTable_reservation();
+void createTable_author();
+void createTable_worker();
+
+void run();
+void initial_menu(int, char*, int*);
+void client_menu(int, char*, int*);
+void admin_menu(int, char*, int*);
+void join();
+void log_in(char*, int*);
+void log_out(char*, int*);
+void deleteAccount(char*, int*);
+void showAccountInfo(char*);
+void reserve_Book(char*);
+int settingR_C_Bid(char*);
+int getBid_fromKeyword();
+int getBid_fromAName(char*);
+int getBid_fromBName(char*);
+void show_AllReservInfo(char* );
+void delete_reservation(char* );
+void regist_LibraryInfo();
+void delete_LibraryInfo();
+void regist_Book_and_AuthorInfo();
+void delete_Book_and_AuthorInfo();
+void regist_WorkerInfo();
+void delete_WorkerInfo();
+void show_AllLibraryInfo();
+void show_LibraryInfobyName();
+void show_AllWorkerInfo();
+void show_AllReservationInfo();
+void show_AllReservation_CustomerInfo();
+void show_AllReservation_BookInfo();
+void invalidAccess();
+
+FILE* in_fp, *out_fp;
+int main()
+{
+	int i;
+	if((in_fp = fopen("input.txt", "r+")) == NULL){ printf("File does not exists\n"); exit(0); }
+	out_fp = fopen("output.txt", "w+");
+	
+
+	connect2DB();
+	
+	createTables();
+
+	run();
+
+	deleteTables();
+	
+	EXEC SQL COMMIT WORK RELEASE;
+	
+	fclose(in_fp);
+	fclose(out_fp);
+	return 0;
+}
+
+void invalidAccess()
+{
+	fprintf(out_fp,"\nWARNING: invalid access\n");
+	while(fgetc(in_fp)!='\n');
+}
+
+void run()
+{
+	char login_id[MAX_STRING];
+	int status = NONE;
+	int menu_level_1 = 0, menu_level_2 = 0;
+	memset(login_id,0,sizeof(login_id));
+
+	while( !(menu_level_1 == 1 && menu_level_2 == 3) )
+	{
+		fscanf(in_fp,"%d %d",&menu_level_1, &menu_level_2);
+
+		switch(menu_level_1)
+		{
+		case 1:
+			initial_menu(menu_level_2, login_id, &status);
+			break;		
+		case 2:
+			client_menu(menu_level_2, login_id, &status);		
+			break;
+		case 3:
+			admin_menu(menu_level_2, login_id, &status);
+			break;
+		default:
+			invalidAccess();
+			break;
+		}
+   }
+}
+
+void initial_menu(int menu_level_2, char* login_id, int* statusPtr)
+{
+	if(*statusPtr == NONE)
+	{
+		switch(menu_level_2)
+		{
+		case 1:	
+			join();
+			break;
+		case 2:	
+			log_in(login_id, statusPtr);
+			break;
+		case 3:	
+			fprintf(out_fp,"\n1.3. 종료\n");
+			break;
+		default:
+			invalidAccess();
+			break;
+		}	
+	}
+	else invalidAccess();
+}
+
+void client_menu(int menu_level_2, char* login_id, int* statusPtr)
+{
+	if(*statusPtr == USER)
+	{
+		switch(menu_level_2)
+		{
+		case 1:
+			showAccountInfo(login_id);
+			break;
+		case 2:
+			reserve_Book(login_id);
+			break;
+		case 3:;
+			show_AllReservInfo(login_id);
+			break;
+		case 4:
+			delete_reservation(login_id);
+			break;
+		case 5:
+			deleteAccount(login_id, statusPtr);
+			break;
+		case 6:
+			log_out(login_id, statusPtr);
+			break;
+		default:
+			invalidAccess();
+			break;
+		}
+	}
+
+	else invalidAccess();
+}
+
+void admin_menu(int menu_level_2, char* login_id, int* statusPtr)
+{
+	if(*statusPtr == ADMIN)
+	{
+		switch(menu_level_2)
+		{
+		case 1:
+			regist_LibraryInfo();
+			break;
+		case 2:
+			delete_LibraryInfo();
+			break;
+		case 3:
+			regist_Book_and_AuthorInfo();
+			break;
+		case 4:
+			delete_Book_and_AuthorInfo();
+			break;
+		case 5:
+			regist_WorkerInfo();
+			break;
+		case 6:
+			delete_WorkerInfo();
+			break;
+		case 7:
+			show_AllLibraryInfo();
+			break;
+		case 8:
+			show_LibraryInfobyName();
+			break;
+		case 9:
+			show_AllWorkerInfo();
+			break;
+		case 10:
+			show_AllReservationInfo();
+			break;
+		case 11:
+			show_AllReservation_BookInfo();
+			break;
+		case 12:
+			show_AllReservation_CustomerInfo();
+			break;
+		case 13:
+			log_out(login_id, statusPtr);
+			break;
+		default:
+			invalidAccess();
+			break;
+		}
+	}
+	else invalidAccess();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void join()
+{	
+	fprintf(out_fp,"\n1.1. 회원가입\n");
+
+	fscanf(in_fp,"%s %s %s %s",cid, cname, cadd, ccall);
+
+	EXEC SQL INSERT INTO customer(cid, cname, cadd, ccall) VALUES(:cid, :cname, :cadd, :ccall);
+	
+	
+	fprintf(out_fp,"> %s %s %s %s\n",cid, cname, cadd, ccall);
+}
+
+void log_in(char* login_id, int* statusPtr)
+{
+	fprintf(out_fp,"\n1.2. 로그인\n");
+
+	fscanf(in_fp,"%s",cid);
+	
+	EXEC SQL SELECT cid FROM customer WHERE cid = :cid;
+
+	if(sqlca.sqlcode == 0)
+	{
+		if(!strcmp("admin",cid))
+		{
+			*statusPtr = ADMIN;
+			strcpy(login_id,cid);
+			fprintf(out_fp, "> %s\n",login_id);
+		}
+		else
+		{
+			*statusPtr = USER;
+			strcpy(login_id,cid);
+			fprintf(out_fp, "> %s\n", login_id);
+		}
+	}
+	else
+	{
+		if(sqlca.sqlcode == 1403) fprintf(out_fp,"> Login failure\n");
+		
+		else
+		{
+			fprintf(out_fp,"> Error Occured: %d\n",sqlca.sqlcode);
+			EXEC SQL ROLLBACK RELEASE;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void log_out(char* login_id, int* statusPtr)
+{
+	if(!strcmp("admin",login_id)) fprintf(out_fp,"\n3.13. 로그아웃\n");
+	else fprintf(out_fp,"\n2.6. 로그아웃\n");
+
+	fprintf(out_fp,"> %s\n",login_id);
+
+	memset(login_id,0,MAX_STRING);
+	
+	*statusPtr = NONE;
+}
+
+//this function is only called by user which already logined
+//so DBMS will find tuple perfectly, No error occured.
+//that is, this function don't need to check error like using sqlca...
+void deleteAccount(char* login_id, int* statusPtr)
+{
+	fprintf(out_fp,"\n2.5. 회원탈퇴\n");
+	
+	strcpy(cid, login_id);
+
+
+	EXEC SQL DELETE FROM reservation WHERE cid = :cid;
+
+	EXEC SQL DELETE FROM customer WHERE cid = :cid;
+
+	fprintf(out_fp,"> %s\n", login_id);
+
+	*statusPtr = NONE;
+	memset(login_id, 0, MAX_STRING);
+}
+
+//this function is only called by user which already logined
+//so DBMS will find tuple perfectly, No error occured.
+//that is, this function don't need to check error like using sqlca...
+void showAccountInfo(char* login_id)
+{
+	fprintf(out_fp,"\n2.1. 회원 정보 조회\n");
+
+	strcpy(cid,login_id);
+
+	EXEC SQL SELECT *
+			INTO :cid, :cname, :cadd, :ccall
+			FROM customer
+			WHERE cid = :cid;
+
+	fprintf(out_fp,"> %s %s %s %s\n", cid, cname, cadd, ccall);
+}
+
+void reserve_Book(char* login_id)
+{
+	fprintf(out_fp,"\n2.2. 도서예약\n");
+	
+	if(!settingR_C_Bid(login_id)) 
+	{
+			fprintf(out_fp,"> book deos not exists\n");
+			return;
+	}
+	
+	EXEC SQL INSERT INTO reservation(rid, cid, bid) VALUES(:rid, :cid, :bid);
+
+	EXEC SQL SELECT r.rid, b.bname, a.aname, b.category, b.pdate, b.pn
+			INTO :rid, :bname, :aname, :category, :pdate, :pn
+			FROM reservation r, book b, author a
+			WHERE r.bid = b.bid AND b.bid = a.bid AND r.rid = :rid;
+			  
+	fprintf(out_fp,"> %s %s %s %s %d %d\n", rid, bname, aname, category, pdate, pn);
+}
+
+int settingR_C_Bid(char* login_id)
+{
+	char* ptr;
+	char temp[MAX_STRING];
+	char str[] = "r000";
+	static unsigned short resvNo = 1;
+	int n;
+
+	//setting rid
+	memset(temp,0,sizeof(temp));
+	n=sprintf(temp,"%d",resvNo);
+	strcpy(&str[4-n],temp);
+	strcpy(rid,str);
+
+	//setting cid
+	strcpy(cid, login_id);
+
+	//setting bid
+	if(!getBid_fromKeyword()) return 0;
+	ptr = strtok(bid," ");
+	strcpy(bid,ptr);
+
+	resvNo++;
+	return 1;
+}
+
+int getBid_fromKeyword()
+{
+	char keyWord[MAX_STRING];
+	fscanf(in_fp,"%s",keyWord);
+
+	if(getBid_fromBName(keyWord)) return 1;
+	else if(getBid_fromAName(keyWord)) return 1;
+	else return 0;
+}
+
+//복수의 book name이 있을 까봐 이렇게 짰지만,
+//sqlcode를 이용할수 있다면 바꿔보자.
+int getBid_fromBName(char* keyWord)
+{
+	strcpy(bname,keyWord);
+
+	EXEC SQL DECLARE b CURSOR FOR SELECT bid FROM book WHERE bname = :bname;
+
+	EXEC SQL OPEN b;
+
+	while(1)
+	{
+		EXEC SQL FETCH b INTO :bid;
+
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE b;
+			else
+			{
+				fprintf(out_fp,"> Error Occured: %d\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return 0;
+		}
+		return 1;
+	}
+}
+
+int getBid_fromAName(char* keyWord)
+{
+	strcpy(aname,keyWord);
+
+	EXEC SQL DECLARE a CURSOR FOR SELECT bid FROM author WHERE aname = :aname;
+
+	EXEC SQL OPEN a;
+
+	while(1)
+	{
+		EXEC SQL FETCH a INTO :bid;
+
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE b;
+			else
+			{
+				fprintf(out_fp,"> Error Occured: %d\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return 0;
+		}
+		return 1;
+	}
+}
+
+void show_AllReservInfo(char* login_id)
+{
+	fprintf(out_fp,"\n2.3. 도서 예약 조회\n");
+
+	strcpy(cid,login_id);
+
+	EXEC SQL DECLARE r CURSOR FOR SELECT R.rid, B.bname, A.aname, B.category, B.pdate, B.pn
+			FROM reservation R, book B, author A
+			WHERE R.bid = B.bid AND B.bid = A.bid AND R.cid = :cid;
+
+	EXEC SQL OPEN r;
+
+	while(1)
+	{
+		EXEC SQL FETCH r INTO :rid, :bname, :aname, :category, :pdate, :pn;
+
+		//SQL instruction problem occured
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE r;
+			else
+			{
+				fprintf("> Error Occured: %d\n\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return;
+		}
+
+		//SQL instruction success
+		fprintf(out_fp, "> %s %s %s %s %d %d\n",rid,bname,aname,category,pdate,pn);
+	}
+}
+
+void delete_reservation(char* login_id)
+{
+	fprintf(out_fp,"\n2.4. 도서 예약 삭제\n");
+
+	fscanf(in_fp,"%s",rid);
+
+	strcpy(cid, login_id);
+
+	EXEC SQL DELETE FROM reservation WHERE rid = :rid;
+
+	fprintf(out_fp,"> %s\n",rid);
+}
+
+void regist_LibraryInfo()
+{	
+	fprintf(out_fp,"\n3.1. 도서관 정보 등록\n");
+
+	fscanf(in_fp,"%s %s %s %s",lid, lname, ladd, lcall);
+
+	EXEC SQL INSERT INTO library(lid, lname, ladd, lcall) VALUES(:lid, :lname, :ladd, :lcall);
+
+	fprintf(out_fp,"> %s %s %s %s\n",lid, lname, ladd, lcall);
+}
+
+void delete_LibraryInfo()
+{
+	fprintf(out_fp,"\n3.2. 도서관 정보 삭제\n");
+
+	fscanf(in_fp,"%s",lid);
+
+	EXEC SQL DELETE FROM library WHERE lid = :lid;
+	
+	fprintf(out_fp,"> %s\n",lid);
+}
+
+void show_LibraryInfobyName()
+{
+	fprintf(out_fp,"\n3.8. 도서관 정보 이름 조회\n");
+
+	fscanf(in_fp,"%s",lname);
+
+	EXEC SQL DECLARE l CURSOR FOR SELECT * FROM library WHERE lname = :lname;
+
+	EXEC SQL OPEN l;
+
+	while(1)
+	{
+		EXEC SQL FETCH l INTO :lid, :lname, :ladd, :lcall;
+
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE l;
+			else
+			{
+				fprintf(out_fp,"> Error Occured: %d\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return ;
+		}
+		
+		fprintf(out_fp,"> %s %s %s %s\n",lid,lname,ladd,lcall);	
+	}
+}
+
+void show_AllLibraryInfo()
+{
+	fprintf(out_fp,"\n3.7. 도서관 정보 전체 조회\n");
+
+	EXEC SQL DECLARE c2 CURSOR FOR SELECT * FROM library;
+
+	EXEC SQL OPEN c2;
+
+	while(1)
+	{
+		EXEC SQL FETCH c2 INTO :lid, :lname, :ladd, :lcall;
+
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE c2;
+			else
+			{
+				fprintf(out_fp,"> Error Occured: %d\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return ;
+		}
+
+		fprintf(out_fp,"> %s %s %s %s\n",lid, lname, ladd, lcall);	
+	}
+}
+
+void regist_Book_and_AuthorInfo()
+{	
+	fprintf(out_fp,"\n3.3. 도서 정보 등록\n");
+
+	fscanf(in_fp, "%s %s %s %s %d %d %s", bid, bname, aname, category, &pdate, &pn, lid);
+
+	EXEC SQL INSERT INTO book(bid, bname, category, pdate, pn, lid) VALUES(:bid, :bname, :category, :pdate, :pn, :lid);
+	
+	EXEC SQL INSERT INTO author(bid, aname) VALUES(:bid, :aname);
+
+	fprintf(out_fp, "> %s %s %s %s %d %d %s\n", bid, bname, aname, category, pdate, pn, lid);
+}
+
+void delete_Book_and_AuthorInfo()
+{
+	fprintf(out_fp,"\n3.4. 도서 정보 삭제\n");
+
+	fscanf(in_fp,"%s",bid);
+
+	EXEC SQL DELETE FROM author WHERE bid = :bid;
+
+	EXEC SQL DELETE FROM book WHERE bid = :bid;
+
+	fprintf(out_fp,"> %s\n",bid);
+}
+
+void regist_WorkerInfo()
+{	
+	fprintf(out_fp,"\n3.5. 사서 정보 등록\n");
+
+	fscanf(in_fp,"%s %s %s %s %s",wid, wname, wadd, wcall, lid);
+	
+	EXEC SQL INSERT INTO worker(wid, wname, wadd, wcall, lid) VALUES(:wid, :wname, :wadd, :wcall, :lid);
+	
+	fprintf(out_fp,"> %s %s %s %s %s\n",wid, wname, wadd, wcall, lid);
+}
+
+void delete_WorkerInfo()
+{
+	fprintf(out_fp,"\n3.6. 사서 정보 삭제\n");
+
+	fscanf(in_fp,"%s",wid);
+
+	EXEC SQL DELETE FROM worker WHERE wid = :wid;
+
+	fprintf(out_fp,"> %s\n", wid);
+}
+
+void show_AllWorkerInfo()
+{
+	fprintf(out_fp,"\n3.9. 사서 정보 전체 조회\n");
+
+	EXEC SQL DECLARE w1 CURSOR FOR SELECT * FROM worker;
+
+	EXEC SQL OPEN w1;
+
+	while(1)
+	{
+		EXEC SQL FETCH w1 INTO :wid, :wname, :wadd, :wcall, :lid ;
+
+		//SQL instruction problem occured
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE w1;
+			else
+			{
+				fprintf(out_fp,"> Error Occured: %d\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return;
+		}
+
+		//SQL instruction success
+		
+		fprintf(out_fp,"> %s %s %s %s %s\n",wid,wname,wadd,wcall,lid);
+	}
+}
+
+void show_AllReservationInfo()
+{
+	fprintf(out_fp,"\n3.10. 예약 내역 정보 전체 조회\n");
+
+	EXEC SQL DECLARE r1 CURSOR FOR SELECT R.rid, C.cid, B.bname, A.aname
+			FROM reservation R, customer C, book B, author A
+			WHERE R.cid = C.cid AND R.bid = B.bid AND B.bid = A.bid;
+
+	EXEC SQL OPEN r1;
+
+	while(1)
+	{
+		EXEC SQL FETCH r1 INTO :rid, :cid, :bname, :aname;
+
+		//SQL instruction problem occured
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE r1;
+			else
+			{
+				fprintf("> Error Occured: %d\n\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return;
+		}
+
+		//SQL instruction success
+		fprintf(out_fp,"> %s %s %s %s\n",rid, cid, bname, aname);
+	}
+}
+
+void show_AllReservation_BookInfo()
+{
+	fprintf(out_fp,"\n3.11. 예약 내역 도서이름 조회\n");
+
+	fscanf(in_fp,"%s",bname);
+
+	EXEC SQL DECLARE r2 CURSOR FOR SELECT R.rid, C.cid, B.bname, A.aname
+					FROM reservation R, customer C, book B, author A
+					WHERE R.cid = C.cid AND R.bid = B.bid AND B.bid = A.bid AND B.bname = :bname;
+
+	EXEC SQL OPEN r2;
+
+	while(1)
+	{
+		EXEC SQL FETCH r2 INTO :rid, :cid, :bname, :aname;
+
+		//SQL instruction problem occured
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE r2;
+			
+			else
+			{
+				fprintf("> Error Occured: %d\n\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return;
+		}
+
+		//SQL instruction success
+		fprintf(out_fp,"> %s %s %s %s\n",rid, cid, bname, aname);
+	}
+}
+
+void show_AllReservation_CustomerInfo()
+{
+	fprintf(out_fp,"\n3.12. 예약 내역 고객이름 조회\n");
+	fscanf(in_fp,"%s",cname);
+
+	EXEC SQL DECLARE r3 CURSOR FOR select R.rid, C.cname, B.bname, A.aname
+			FROM reservation R, customer C, book B, Author A
+			WHERE R.cid = C.cid AND R.bid = B.bid AND B.bid = A.bid AND C.cname = :cname;
+
+	EXEC SQL OPEN r3;
+
+	while(1)
+	{
+
+		EXEC SQL FETCH r3 INTO :rid, :cname, :bname, :aname;
+
+		//SQL instruction problem occured
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE r3;
+			else
+			{
+				fprintf("> Error Occured: %d\n\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return;
+		}
+		//SQL instruction success
+		fprintf(out_fp,"> %s %s %s %s\n",rid, cname, bname, aname);
+	}
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void connect2DB()
+{
+	EXEC SQL BEGIN DECLARE SECTION;
+		char username[20];
+		char password[20];
+	EXEC SQL END DECLARE SECTION;
+
+	strcpy(username, "b115233"); //B115233 이아닌 b115233 이어야 한다.
+	strcpy(password, "b115233");
+
+	EXEC SQL CONNECT :username IDENTIFIED BY :password;
+
+	printf("connected to orasql...\n");
+}
+
+void createTables()
+{
+	createTable_customer();
+	createTalbe_library();
+	createTable_worker();
+	createTable_book();
+	createTable_author();
+	createTable_reservation();
+
+	printf("All table created...\n");
+}
+
+void deleteTables()
+{
+	EXEC SQL DROP TABLE reservation;
+	EXEC SQL DROP TABLE author;
+	EXEC SQL DROP TABLE book;
+	EXEC SQL DROP TABLE worker;
+	EXEC SQL DROP TABLE library;
+	EXEC SQL DROP TABLE customer;
+	
+	printf("All table deleted...\n");
+}
+
+void createTable_customer()
+{
+	EXEC SQL CREATE TABLE customer(
+		cid varchar2(32) primary key,
+		cname varchar2(32),
+		cadd varchar2(32),
+		ccall varchar2(32)
+	);
+}
+
+void createTalbe_library()
+{
+	EXEC SQL CREATE TABLE library(
+		lid varchar2(32) primary key,
+		lname varchar2(32),
+		ladd varchar2(32),
+		lcall varchar2(32)
+	);
+}
+
+void createTable_book()
+{
+	EXEC SQL CREATE TABLE book(
+		bid varchar2(32) primary key,
+		bname varchar2(32),
+		category varchar2(32),
+		pdate number(4),
+		pn number(10),
+		lid	varchar2(32),
+		FOREIGN KEY (lid) REFERENCES library,
+		CHECK(pdate > 0 AND pn >0)
+	);
+}
+
+void createTable_author()
+{
+	EXEC SQL CREATE TABLE author(
+		bid varchar2(32),
+		aname varchar2(32),
+		constraint aid primary key(bid,aname),
+		FOREIGN KEY (bid) REFERENCES book
+	);
+}
+
+void createTable_reservation()
+{
+	EXEC SQL CREATE TABLE reservation(
+		rid varchar2(32),
+		cid varchar2(32),
+		bid varchar2(32),
+		constraint cbid primary key(cid,bid),
+		FOREIGN KEY (cid) REFERENCES customer,
+		FOREIGN KEY (bid) REFERENCES book
+	);
+}
+
+void createTable_worker()
+{
+	EXEC SQL CREATE TABLE worker(
+		wid varchar2(32) primary key,
+		wname varchar2(32),
+		wadd varchar2(32),
+		wcall varchar2(32),
+		lid varchar2(32),
+		FOREIGN KEY (lid) REFERENCES library
+	);
+}
+
+
+
+
+
+/*
+void show_AllReservInfo(char* login_id)
+{
+	fprintf(out_fp,"\n2.3. 도서 예약 조회\n");
+
+	char* ptr;
+
+	strcpy(cid,login_id);
+
+	EXEC SQL DECLARE r CURSOR FOR SELECT rid, bid FROM reservation WHERE cid = :cid;
+
+	EXEC SQL OPEN r;
+	
+	while(1)
+	{
+		EXEC SQL FETCH r INTO :rid, :bid;
+
+		//SQL instruction problem occured
+		if(sqlca.sqlcode != 0)
+		{
+			if(sqlca.sqlcode == 1403) EXEC SQL CLOSE r;
+			else
+			{
+				fprintf(out_fp,"Error Occured: %d\n",sqlca.sqlcode);
+				EXEC SQL ROLLBACK RELEASE;
+			}
+			return;
+		}
+
+		//SQL instructon success
+		ptr = strtok(bid," ");
+		strcpy(bid,ptr);
+
+		EXEC SQL SELECT b.bname, a.aname, b.category, b.pdate, b.pn
+				INTO :bname, :aname, :category, :pdate, :pn
+				FROM book b, author a
+				WHERE b.bid = :bid AND a.bid = b.bid;
+
+		fprintf(out_fp, "> %s %s %s %s %d %d\n",rid,bname,aname,category,pdate,pn);
+	}
+}
+*/

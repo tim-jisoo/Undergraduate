@@ -1,0 +1,5 @@
+#! /bin/sh
+
+cp ./diskimg/pure/DISK1.img ./diskimg/DISK1.img
+cp ./diskimg/pure/DISK2.img ./diskimg/DISK2.img
+cp ./diskimg/pure/DISKFull.img ./diskimg/DISKFull.img
